@@ -12,7 +12,6 @@ from dispatch.database.core import SessionLocal, resolve_attr
 from dispatch.document import service as document_service
 from dispatch.incident.enums import IncidentStatus
 from dispatch.incident.models import Incident, IncidentRead
-
 from dispatch.notification import service as notification_service
 from dispatch.messaging.strings import (
     INCIDENT_CLOSED_INFORMATION_REVIEW_REMINDER_NOTIFICATION,
@@ -451,7 +450,10 @@ def send_incident_participant_announcement_message(
 
     participant_avatar_url = convo_plugin.instance.get_participant_avatar_url(participant_email)
 
-    # TODO these shouldn't be raw blocks (kglisson)
+    participant_name_mrkdwn = participant_name
+    if participant_weblink:
+        participant_name_mrkdwn = f"<{participant_weblink}|{participant_name}>"
+
     blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": f"*{notification_text}*"}},
         {
@@ -459,7 +461,7 @@ def send_incident_participant_announcement_message(
             "text": {
                 "type": "mrkdwn",
                 "text": (
-                    f"*Name:* <{participant_weblink}|{participant_name}>\n"
+                    f"*Name:* {participant_name_mrkdwn}\n"
                     f"*Team*: {participant_team}, {participant_department}\n"
                     f"*Location*: {participant_location}\n"
                     f"*Incident Role(s)*: {(', ').join(participant_roles)}\n"
@@ -765,6 +767,7 @@ def send_incident_closed_information_review_reminder(incident: Incident, db_sess
             "name": incident.name,
             "title": incident.title,
             "description": f"{incident.description[:100]}",
+            "resolution": f"{incident.resolution[:100]}",
             "type": incident.incident_type.name,
             "priority": incident.incident_priority.name,
             "dispatch_ui_incident_url": f"{DISPATCH_UI_URL}/{incident.project.organization.name}/incidents/{incident.name}",
@@ -812,13 +815,17 @@ def send_incident_rating_feedback_message(incident: Incident, db_session: Sessio
     ]
 
     for participant in incident.participants:
-        plugin.instance.send_direct(
-            participant.individual.email,
-            notification_text,
-            notification_template,
-            MessageType.incident_rating_feedback,
-            items=items,
-        )
+        try:
+            plugin.instance.send_direct(
+                participant.individual.email,
+                notification_text,
+                notification_template,
+                MessageType.incident_rating_feedback,
+                items=items,
+            )
+        except Exception as e:
+            # if one fails we don't want all to fail
+            log.exception(e)
 
     log.debug("Incident rating and feedback message sent to all participants.")
 

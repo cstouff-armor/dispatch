@@ -10,6 +10,7 @@
     deletable-chips
     hide-selected
     item-text="name"
+    item-value="id"
     multiple
     no-filter
     v-model="project"
@@ -55,6 +56,7 @@ import ProjectApi from "@/project/api"
 
 export default {
   name: "ProjectComboBox",
+
   props: {
     value: {
       type: Array,
@@ -87,14 +89,11 @@ export default {
       },
       set(value) {
         this.search = null
-        let _projects = value.map((v) => {
+        let _projects = value.filter((v) => {
           if (typeof v === "string") {
-            v = {
-              name: v,
-            }
-            this.items.push(v)
+            return false
           }
-          return v
+          return true
         })
         this.$emit("input", _projects)
       },
@@ -117,6 +116,8 @@ export default {
       let filterOptions = {
         q: this.search,
         itemsPerPage: this.numItems,
+        sortBy: ["name"],
+        descending: [false],
       }
 
       filterOptions = SearchUtils.createParametersFromTableOptions({ ...filterOptions })

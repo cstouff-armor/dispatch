@@ -10,6 +10,7 @@
     deletable-chips
     hide-selected
     item-text="name"
+    item-value="id"
     multiple
     no-filter
     v-model="incidentType"
@@ -100,14 +101,11 @@ export default {
       },
       set(value) {
         this.search = null
-        this._incidentTypes = value.map((v) => {
+        this._incidentTypes = value.filter((v) => {
           if (typeof v === "string") {
-            v = {
-              name: v,
-            }
-            this.items.push(v)
+            return false
           }
-          return v
+          return true
         })
         this.$emit("input", this._incidentTypes)
       },
@@ -126,6 +124,7 @@ export default {
     fetchData() {
       this.error = null
       this.loading = "error"
+
       let filterOptions = {
         q: this.search,
         sortBy: ["name"],

@@ -4,7 +4,7 @@
     type="bar"
     :options="chartOptions"
     :series="series"
-    title="Primary Teams"
+    title="Participants Team"
   />
 </template>
 
@@ -14,7 +14,7 @@ import DashboardCard from "@/dashboard/DashboardCard.vue"
 import DashboardUtils from "@/dashboard/utils"
 
 export default {
-  name: "IncidentPrimaryTeamBarChartCard",
+  name: "IncidentParticipantsTeamBarChartCard",
 
   props: {
     value: {
@@ -42,6 +42,9 @@ export default {
           type: "bar",
           height: 350,
           stacked: true,
+          animations: {
+            enabled: false,
+          },
           events: {
             dataPointSelection: (event, chartContext, config) => {
               var data = config.w.config.series[config.seriesIndex].data[config.dataPointIndex]
@@ -77,10 +80,10 @@ export default {
       let allTeams = []
       forEach(this.value, function (value) {
         forEach(value, function (value) {
-          allTeams.push(value.primary_team)
+          allTeams.push(value.participants_team)
         })
       })
-      let series = DashboardUtils.createCountedSeriesData(this.value, "primary_team", [
+      let series = DashboardUtils.createCountedSeriesData(this.value, "participants_team", [
         ...new Set(allTeams),
       ])
       return series

@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.routing import compile_path
 
-from starlette.responses import Response, FileResponse
+from starlette.responses import Response, StreamingResponse, FileResponse
 from starlette.staticfiles import StaticFiles
 
 from .api import api_router
@@ -79,8 +79,7 @@ def get_path_params_from_request(request: Request) -> str:
     path_params = {}
     for r in api_router.routes:
         path_regex, path_format, param_converters = compile_path(r.path)
-        # remove the /api/v1 for matching
-        path = f"/{request['path'].strip('/api/v1')}"
+        path = request["path"].removeprefix("/api/v1")  # remove the /api/v1 for matching
         match = path_regex.match(path)
         if match:
             path_params = match.groupdict()
@@ -89,8 +88,8 @@ def get_path_params_from_request(request: Request) -> str:
 
 def get_path_template(request: Request) -> str:
     if hasattr(request, "path"):
-        return ",".join(request.path.split("/")[1:4])
-    return ".".join(request.url.path.split("/")[1:4])
+        return ",".join(request.path.split("/")[1:])
+    return ".".join(request.url.path.split("/")[1:])
 
 
 REQUEST_ID_CTX_KEY: Final[str] = "request_id"
@@ -126,8 +125,8 @@ async def db_session_middleware(request: Request, call_next):
             )
         else:
             return JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content={"detail": [{"msg": "Forbidden"}]},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"detail": [{"msg": f"Unknown database schema name: {schema}"}]},
             )
     else:
         # add correct schema mapping depending on the request
@@ -142,6 +141,8 @@ async def db_session_middleware(request: Request, call_next):
         session = scoped_session(sessionmaker(bind=schema_engine), scopefunc=get_request_id)
         request.state.db = session()
         response = await call_next(request)
+    except Exception as e:
+        raise e from None
     finally:
         request.state.db.close()
 
@@ -179,7 +180,9 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 
 
 class ExceptionMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> StreamingResponse:
         try:
             response = await call_next(request)
         except ValidationError as e:

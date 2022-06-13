@@ -9,7 +9,7 @@
             :error-messages="errors"
             :success="valid"
             label="Title"
-            hint="Title of incident."
+            hint="Title of the incident."
             clearable
             required
           />
@@ -23,11 +23,19 @@
             :error-messages="errors"
             :success="valid"
             label="Description"
-            hint="Description of incident."
+            hint="Description of the incident."
             clearable
             required
           />
         </ValidationProvider>
+      </v-flex>
+      <v-flex xs12>
+        <v-textarea
+          v-model="resolution"
+          label="Resolution"
+          hint="Description of the actions taken to resolve the incident."
+          clearable
+        />
       </v-flex>
       <v-flex xs12>
         <project-select v-model="project" />
@@ -37,7 +45,7 @@
           v-model="status"
           label="Status"
           :items="statuses"
-          hint="The incident's current status"
+          hint="The status of the incident."
         />
       </v-flex>
       <v-flex xs6>
@@ -45,7 +53,7 @@
           v-model="visibility"
           label="Visibility"
           :items="visibilities"
-          hint="The incident's current's visibilty"
+          hint="The visibilty of the incident."
         />
       </v-flex>
       <v-flex xs6>
@@ -95,7 +103,7 @@
         </v-row>
       </v-flex>
       <v-flex xs12>
-        <tag-filter-combobox label="Tags" v-model="tags" model="incident" :model-id="id" />
+        <tag-filter-auto-complete label="Tags" v-model="tags" model="incident" :model-id="id" />
       </v-flex>
       <v-flex xs12>
         <incident-filter-combobox label="Duplicates" v-model="duplicates" :project="project" />
@@ -112,7 +120,7 @@ import ProjectSelect from "@/project/ProjectSelect.vue"
 import IncidentPrioritySelect from "@/incident_priority/IncidentPrioritySelect.vue"
 import IncidentTypeSelect from "@/incident_type/IncidentTypeSelect.vue"
 import DateTimePickerMenu from "@/components/DateTimePickerMenu.vue"
-import TagFilterCombobox from "@/tag/TagFilterCombobox.vue"
+import TagFilterAutoComplete from "@/tag/TagFilterAutoComplete.vue"
 import IncidentFilterCombobox from "@/incident/IncidentFilterCombobox.vue"
 import ParticipantSelect from "@/incident/ParticipantSelect.vue"
 
@@ -129,7 +137,7 @@ export default {
     IncidentPrioritySelect,
     IncidentTypeSelect,
     ParticipantSelect,
-    TagFilterCombobox,
+    TagFilterAutoComplete,
     IncidentFilterCombobox,
     ProjectSelect,
     DateTimePickerMenu,
@@ -148,6 +156,7 @@ export default {
       "selected.name",
       "selected.title",
       "selected.description",
+      "selected.resolution",
       "selected.commander",
       "selected.reporter",
       "selected.created_at",

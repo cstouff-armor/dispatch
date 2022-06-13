@@ -8,8 +8,10 @@ import logging
 
 from datetime import datetime, timedelta
 from typing import List, Optional
+from pydantic.error_wrappers import ErrorWrapper, ValidationError
 
 from dispatch.database.core import SessionLocal
+from dispatch.exceptions import NotFoundError
 from dispatch.event import service as event_service
 from dispatch.incident_cost import service as incident_cost_service
 from dispatch.incident_priority import service as incident_priority_service
@@ -23,7 +25,7 @@ from dispatch.tag import service as tag_service
 from dispatch.term import service as term_service
 
 from .enums import IncidentStatus
-from .models import Incident, IncidentCreate, IncidentUpdate
+from .models import Incident, IncidentCreate, IncidentRead, IncidentUpdate
 
 
 log = logging.getLogger(__name__)
@@ -63,14 +65,34 @@ def get(*, db_session, incident_id: int) -> Optional[Incident]:
     return db_session.query(Incident).filter(Incident.id == incident_id).first()
 
 
-def get_by_name(*, db_session, project_id: int, incident_name: str) -> Optional[Incident]:
+def get_by_name(*, db_session, project_id: int, name: str) -> Optional[Incident]:
     """Returns an incident based on the given name."""
     return (
         db_session.query(Incident)
-        .filter(Incident.name == incident_name)
+        .filter(Incident.name == name)
         .filter(Incident.project_id == project_id)
         .first()
     )
+
+
+def get_by_name_or_raise(*, db_session, project_id: int, incident_in: IncidentRead) -> Incident:
+    """Returns an incident based on a given name or raises ValidationError"""
+    incident = get_by_name(db_session=db_session, project_id=project_id, name=incident_in.name)
+
+    if not incident:
+        raise ValidationError(
+            [
+                ErrorWrapper(
+                    NotFoundError(
+                        msg="Incident not found.",
+                        query=incident_in.name,
+                    ),
+                    loc="incident",
+                )
+            ],
+            model=IncidentRead,
+        )
+    return incident
 
 
 def get_all(*, db_session, project_id: int) -> List[Optional[Incident]]:
@@ -78,22 +100,18 @@ def get_all(*, db_session, project_id: int) -> List[Optional[Incident]]:
     return db_session.query(Incident).filter(Incident.project_id == project_id)
 
 
-def get_all_by_status(
-    *, db_session, status: str, project_id: int, skip=0, limit=100
-) -> List[Optional[Incident]]:
+def get_all_by_status(*, db_session, status: str, project_id: int) -> List[Optional[Incident]]:
     """Returns all incidents based on the given status."""
     return (
         db_session.query(Incident)
         .filter(Incident.status == status)
         .filter(Incident.project_id == project_id)
-        .offset(skip)
-        .limit(limit)
         .all()
     )
 
 
 def get_all_last_x_hours_by_status(
-    *, db_session, status: str, hours: int, project_id: int, skip=0, limit=100
+    *, db_session, status: str, hours: int, project_id: int
 ) -> List[Optional[Incident]]:
     """Returns all incidents of a given status in the last x hours."""
     now = datetime.utcnow()
@@ -104,8 +122,6 @@ def get_all_last_x_hours_by_status(
             .filter(Incident.status == IncidentStatus.active)
             .filter(Incident.created_at >= now - timedelta(hours=hours))
             .filter(Incident.project_id == project_id)
-            .offset(skip)
-            .limit(limit)
             .all()
         )
 
@@ -115,8 +131,6 @@ def get_all_last_x_hours_by_status(
             .filter(Incident.status == IncidentStatus.stable)
             .filter(Incident.stable_at >= now - timedelta(hours=hours))
             .filter(Incident.project_id == project_id)
-            .offset(skip)
-            .limit(limit)
             .all()
         )
 
@@ -126,8 +140,6 @@ def get_all_last_x_hours_by_status(
             .filter(Incident.status == IncidentStatus.closed)
             .filter(Incident.closed_at >= now - timedelta(hours=hours))
             .filter(Incident.project_id == project_id)
-            .offset(skip)
-            .limit(limit)
             .all()
         )
 
@@ -286,12 +298,12 @@ def update(*, db_session, incident: Incident, incident_in: IncidentUpdate) -> In
             "incident_costs",
             "incident_priority",
             "incident_type",
+            "project",
             "reporter",
             "status",
             "tags",
             "terms",
             "visibility",
-            "project",
         },
     )
 

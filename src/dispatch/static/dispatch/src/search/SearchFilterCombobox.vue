@@ -14,6 +14,7 @@
         deletable-chips
         hide-selected
         item-text="name"
+        item-value="id"
         multiple
         no-filter
         v-model="searchFilters"
@@ -134,14 +135,11 @@ export default {
       },
       set(value) {
         this.search = null
-        this._filters = value.map((v) => {
+        this._filters = value.filter((v) => {
           if (typeof v === "string") {
-            v = {
-              text: v,
-            }
-            this.items.push(v)
+            return false
           }
-          return v
+          return true
         })
         this.$emit("input", this._filters)
       },

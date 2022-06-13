@@ -9,7 +9,7 @@
     <template v-slot:activator="{ on, attrs }">
       <v-text-field
         v-model="windowRange"
-        label="Reported At"
+        :label="label"
         v-bind="attrs"
         v-on="on"
         clearable
@@ -84,6 +84,10 @@ export default {
         return {}
       },
     },
+    label: {
+      type: String,
+      default: "Reported At",
+    },
   },
 
   data() {
@@ -137,11 +141,9 @@ export default {
         if (Object.keys(this.value).length > 1) {
           return cloneDeep(this.value)
         }
-        let start = subMonths(today(), 6).setHours(0, 0, 0, 0)
-        let end = today().setHours(23, 59, 59, 999)
         return {
-          start: this.toLocalISOString(start),
-          end: this.toLocalISOString(end),
+          start: null,
+          end: null,
         }
       },
       set(value) {
@@ -191,7 +193,7 @@ export default {
       }
     },
     toLocalISOString: function (date) {
-      let tzOffset = date.getTimezoneOffset() * 60000 //offset in milliseconds
+      let tzOffset = date.getTimezoneOffset() * 60000 // offset in milliseconds
       return new Date(date - tzOffset).toISOString().slice(0, -1)
     },
   },

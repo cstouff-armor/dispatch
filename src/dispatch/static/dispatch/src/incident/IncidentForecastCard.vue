@@ -9,6 +9,9 @@
 </template>
 
 <script>
+import { mapFields } from "vuex-map-fields"
+import SearchUtils from "@/search/utils"
+import RouterUtils from "@/router/utils"
 import IncidentApi from "@/incident/api"
 import DashboardCard from "@/dashboard/DashboardCard.vue"
 
@@ -20,7 +23,7 @@ export default {
   },
 
   props: {
-    filterOptions: {
+    value: {
       type: Object,
       default: function () {
         return {}
@@ -29,11 +32,28 @@ export default {
   },
 
   computed: {
+    ...mapFields("route", ["query"]),
+    filterParam() {
+      let params = {}
+      let filters = RouterUtils.deserializeFilters(this.query) // Order matters as values will overwrite
+      if (filters) {
+        delete filters.reported_at
+        delete filters.closed_at
+        let expression = SearchUtils.createFilterExpression(filters, "Incident")
+        if (expression.length != 0) {
+          params = { filter: JSON.stringify({ and: expression }) }
+        }
+      }
+      return params
+    },
     chartOptions() {
       return {
         chart: {
           height: 350,
           type: "line",
+          animations: {
+            enabled: false,
+          },
         },
         dataLabels: {
           enabled: true,
@@ -88,9 +108,8 @@ export default {
 
   methods: {
     fetchData() {
-      this.loading = "error"
-      let params = this.filterOptions || {}
-      IncidentApi.getMetricForecast(params).then((response) => {
+      this.loading = "primary"
+      IncidentApi.getMetricForecast(this.filterParam).then((response) => {
         this.loading = false
         this.series = response.data.series
         this.categories = response.data.categories
@@ -98,14 +117,14 @@ export default {
     },
   },
 
-  created() {
+  created: function () {
     this.fetchData()
-    this.$watch(
-      (vm) => [vm.filterOptions],
-      () => {
-        this.fetchData()
-      }
-    )
+  },
+
+  watch: {
+    query: function () {
+      this.fetchData()
+    },
   },
 }
 </script>

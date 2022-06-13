@@ -11,7 +11,7 @@
         <div class="headline">Incidents</div>
       </v-col>
       <v-col cols="3">
-        <table-filter-dialog />
+        <table-filter-dialog :projects="defaultUserProjects" />
         <table-export-dialog />
         <v-btn color="info" class="ml-2" @click="showNewSheet()"> New </v-btn>
       </v-col>
@@ -67,6 +67,14 @@
                 <span>{{ item.reported_at | formatDate }}</span>
               </v-tooltip>
             </template>
+            <template v-slot:item.closed_at="{ item }">
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <span v-bind="attrs" v-on="on">{{ item.closed_at | formatRelativeDate }}</span>
+                </template>
+                <span>{{ item.closed_at | formatDate }}</span>
+              </v-tooltip>
+            </template>
             <template v-slot:item.data-table-actions="{ item }">
               <v-menu bottom left>
                 <template v-slot:activator="{ on }">
@@ -104,7 +112,6 @@
 import { mapFields } from "vuex-map-fields"
 import { mapActions } from "vuex"
 
-import RouterUtils from "@/router/utils"
 import BulkEditSheet from "@/incident/BulkEditSheet.vue"
 import DeleteDialog from "@/incident/DeleteDialog.vue"
 import IncidentCostCard from "@/incident_cost/IncidentCostCard.vue"
@@ -113,6 +120,7 @@ import IncidentPriority from "@/incident/IncidentPriority.vue"
 import IncidentStatus from "@/incident/IncidentStatus.vue"
 import NewSheet from "@/incident/NewSheet.vue"
 import ReportDialog from "@/incident/ReportDialog.vue"
+import RouterUtils from "@/router/utils"
 import TableExportDialog from "@/incident/TableExportDialog.vue"
 import TableFilterDialog from "@/incident/TableFilterDialog.vue"
 
@@ -151,6 +159,7 @@ export default {
         { text: "Commander", value: "commander", sortable: false },
         { text: "Cost", value: "incident_costs", sortable: false },
         { text: "Reported At", value: "reported_at" },
+        { text: "Closed At", value: "closed_at" },
         { text: "", value: "data-table-actions", sortable: false, align: "end" },
       ],
       showEditSheet: false,
@@ -180,6 +189,22 @@ export default {
       "table.rows.selected",
     ]),
     ...mapFields("route", ["query"]),
+    ...mapFields("auth", ["currentUser.projects"]),
+
+    defaultUserProjects: {
+      get() {
+        let d = null
+        if (this.projects) {
+          let d = this.projects.filter((v) => v.default === true)
+          return d.map((v) => v.project)
+        }
+        return d
+      },
+    },
+  },
+
+  methods: {
+    ...mapActions("incident", ["getAll", "showNewSheet", "showDeleteDialog", "showReportDialog"]),
   },
 
   watch: {
@@ -192,7 +217,11 @@ export default {
   },
 
   created() {
-    this.filters = { ...this.filters, ...RouterUtils.deserializeFilters(this.query) }
+    this.filters = {
+      ...this.filters,
+      ...RouterUtils.deserializeFilters(this.query),
+      project: this.defaultUserProjects,
+    }
 
     this.getAll()
 
@@ -209,31 +238,21 @@ export default {
         vm.sortBy,
         vm.itemsPerPage,
         vm.descending,
-        vm.commander,
-        vm.reporter,
         vm.reported_at.start,
         vm.reported_at.end,
+        vm.project,
         vm.incident_type,
         vm.incident_priority,
-        vm.tag_type,
         vm.status,
+        vm.tag_type,
         vm.tag,
-        vm.project,
       ],
       () => {
         this.page = 1
-
-        // convert cost sort by to total cost
-        //let index = this.sortBy.findIndex((column) => column === "incident_costs")
-        //this.sortBy[index] = "total_cost"
         RouterUtils.updateURLFilters(this.filters)
         this.getAll()
       }
     )
-  },
-
-  methods: {
-    ...mapActions("incident", ["getAll", "showNewSheet", "showDeleteDialog", "showReportDialog"]),
   },
 }
 </script>

@@ -24,7 +24,8 @@ from .models import (
     OrganizationUpdate,
     OrganizationPagination,
 )
-from .service import create, get, update, add_user
+from .service import create, get, get_by_name, update, add_user
+
 
 router = APIRouter()
 
@@ -46,17 +47,15 @@ def create_organization(
     current_user: DispatchUser = Depends(get_current_user),
 ):
     """Create a new organization."""
-    try:
-        organization = create(db_session=db_session, organization_in=organization_in)
-    except IntegrityError:
-        raise ValidationError(
-            [
-                ErrorWrapper(
-                    ExistsError(msg="An organization with this name already exists."), loc="name"
-                )
-            ],
-            model=OrganizationCreate,
+    organization = get_by_name(db_session=db_session, name=organization_in.name)
+    if organization:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=[{"msg": "An organization with this name already exists."}],
         )
+
+    # create organization
+    organization = create(db_session=db_session, organization_in=organization_in)
 
     # add creator as organization owner
     add_user(
@@ -110,22 +109,3 @@ def update_organization(
             model=OrganizationUpdate,
         )
     return organization
-
-
-# this isn't full supported yet
-# @router.delete(
-#    "/{organization_id}",
-#    response_model=OrganizationRead,
-#    dependencies=[Depends(PermissionsDependency([OrganizationOwnerPermission]))],
-# )
-# def delete_organization(*, db_session: Session = Depends(get_db), organization_id: PrimaryKey):
-#    """Delete an organization."""
-#    organization = get(db_session=db_session, organization_id=organization_id)
-#    if not organization:
-#        raise HTTPException(
-#            status_code=status.HTTP_404_NOT_FOUND, detail=[{"msg": "An organization with this id does not exist."}]
-#        )
-#
-#    delete(db_session=db_session, organization_id=organization_id)
-#    return organization
-#

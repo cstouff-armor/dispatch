@@ -11,6 +11,7 @@
     deletable-chips
     hide-selected
     item-text="name"
+    item-value="id"
     multiple
     no-filter
     v-model="incident"
@@ -74,14 +75,11 @@ export default {
         return cloneDeep(this.value)
       },
       set(value) {
-        this._incidents = value.map((v) => {
+        this._incidents = value.filter((v) => {
           if (typeof v === "string") {
-            v = {
-              name: v,
-            }
-            this.items.push(v)
+            return false
           }
-          return v
+          return true
         })
         this.$emit("input", this._incidents)
         this.search = null

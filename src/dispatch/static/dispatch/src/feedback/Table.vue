@@ -6,7 +6,7 @@
         <div class="headline">Feedback</div>
       </v-col>
       <v-col cols="1">
-        <table-filter-dialog />
+        <table-filter-dialog :projects="defaultUserProjects" />
       </v-col>
     </v-row>
     <v-row no-gutters>
@@ -69,26 +69,29 @@
 import { mapFields } from "vuex-map-fields"
 import { mapActions } from "vuex"
 
-import RouterUtils from "@/router/utils"
 import DeleteDialog from "@/feedback/DeleteDialog.vue"
-import TableFilterDialog from "@/feedback/TableFilterDialog.vue"
 import Participant from "@/incident/Participant.vue"
+import RouterUtils from "@/router/utils"
+import TableFilterDialog from "@/feedback/TableFilterDialog.vue"
+
 export default {
   name: "FeedbackTable",
 
   components: {
-    TableFilterDialog,
     DeleteDialog,
     Participant,
+    TableFilterDialog,
   },
+
   data() {
     return {
       headers: [
-        { text: "Incident", value: "incident.name", sortable: false },
         { text: "Title", value: "incident.title", sortable: false },
         { text: "Rating", value: "rating", sortable: true },
         { text: "Feedback", value: "feedback", sortable: true },
         { text: "Participant", value: "participant", sortable: true },
+        { text: "Incident", value: "incident.name", sortable: false },
+        { text: "Project", value: "incident.project.name", sortable: false },
         { text: "Created At", value: "created_at", sortable: true },
         { text: "", value: "data-table-actions", sortable: false, align: "end" },
       ],
@@ -113,10 +116,31 @@ export default {
       "table.rows.total",
     ]),
     ...mapFields("route", ["query"]),
+    ...mapFields("auth", ["currentUser.projects"]),
+
+    defaultUserProjects: {
+      get() {
+        let d = null
+        if (this.projects) {
+          let d = this.projects.filter((v) => v.default === true)
+          return d.map((v) => v.project)
+        }
+        return d
+      },
+    },
+  },
+
+  methods: {
+    ...mapActions("feedback", ["getAll", "removeShow"]),
   },
 
   created() {
-    this.filters = { ...this.filters, ...RouterUtils.deserializeFilters(this.query) }
+    this.filters = {
+      ...this.filters,
+      ...RouterUtils.deserializeFilters(this.query),
+      project: this.defaultUserProjects,
+    }
+
     this.getAll()
 
     this.$watch(
@@ -144,10 +168,6 @@ export default {
         this.getAll()
       }
     )
-  },
-
-  methods: {
-    ...mapActions("feedback", ["getAll", "removeShow"]),
   },
 }
 </script>

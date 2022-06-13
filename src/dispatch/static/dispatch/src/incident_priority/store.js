@@ -6,17 +6,18 @@ import IncidentPriorityApi from "@/incident_priority/api"
 
 const getDefaultSelectedState = () => {
   return {
+    color: null,
+    default: false,
+    description: null,
+    enabled: false,
+    executive_report_reminder: null,
     id: null,
+    loading: false,
     name: null,
     page_commander: null,
-    view_order: null,
-    tactical_report_reminder: null,
     project: null,
-    executive_report_reminder: null,
-    enabled: false,
-    description: null,
-    loading: false,
-    default: false,
+    tactical_report_reminder: null,
+    view_order: null,
   }
 }
 
@@ -54,7 +55,10 @@ const getters = {
 const actions = {
   getAll: debounce(({ commit, state }) => {
     commit("SET_TABLE_LOADING", "primary")
-    let params = SearchUtils.createParametersFromTableOptions({ ...state.table.options })
+    let params = SearchUtils.createParametersFromTableOptions(
+      { ...state.table.options },
+      "IncidentPriority"
+    )
     return IncidentPriorityApi.getAll(params)
       .then((response) => {
         commit("SET_TABLE_LOADING", false)

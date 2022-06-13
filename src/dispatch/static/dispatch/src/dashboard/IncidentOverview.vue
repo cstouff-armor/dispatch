@@ -10,7 +10,11 @@
         <v-btn color="info" @click="copyView"> Share View </v-btn>
       </v-flex>
       <v-flex class="d-flex justify-end" lg6 sm6 xs12>
-        <dialog-filter @filterOptions="setFilterOptions" @update="update" @loading="setLoading" />
+        <incident-dialog-filter
+          @update="update"
+          @loading="setLoading"
+          :projects="defaultUserProjects"
+        />
       </v-flex>
     </v-layout>
     <v-layout row wrap>
@@ -57,7 +61,7 @@
         <incident-cost-bar-chart-card v-model="groupedItems" :loading="loading" />
       </v-flex>
       <v-flex lg12 sm12 xs12>
-        <incident-forecast-card :filter-options="filterOptions" />
+        <incident-forecast-card />
       </v-flex>
       <v-flex lg6 sm6 xs12>
         <incident-active-time-card v-model="groupedItems" :loading="loading" />
@@ -66,14 +70,28 @@
         <incident-resolve-time-card v-model="groupedItems" :loading="loading" />
       </v-flex>
       <v-flex lg12 sm12 xs12>
-        <incident-primary-location-bar-chart-card
+        <incident-reporters-location-bar-chart-card
           v-model="groupedItems"
           :loading="loading"
           @detailsSelected="detailsSelected($event)"
         />
       </v-flex>
       <v-flex lg12 sm12 xs12>
-        <incident-primary-team-bar-chart-card
+        <incident-commanders-location-bar-chart-card
+          v-model="groupedItems"
+          :loading="loading"
+          @detailsSelected="detailsSelected($event)"
+        />
+      </v-flex>
+      <v-flex lg12 sm12 xs12>
+        <incident-participants-location-bar-chart-card
+          v-model="groupedItems"
+          :loading="loading"
+          @detailsSelected="detailsSelected($event)"
+        />
+      </v-flex>
+      <v-flex lg12 sm12 xs12>
+        <incident-participants-team-bar-chart-card
           v-model="groupedItems"
           :loading="loading"
           @detailsSelected="detailsSelected($event)"
@@ -94,40 +112,44 @@
 <script>
 import { mapFields } from "vuex-map-fields"
 import { groupBy, sumBy, filter } from "lodash"
-import differenceInHours from "date-fns/differenceInHours"
 import { parseISO } from "date-fns"
+import differenceInHours from "date-fns/differenceInHours"
 
-import DialogFilter from "@/dashboard/DialogFilter.vue"
-import StatWidget from "@/components/StatWidget.vue"
-import IncidentTypeBarChartCard from "@/incident/IncidentTypeBarChartCard.vue"
 import IncidentActiveTimeCard from "@/incident/IncidentActiveTimeCard.vue"
-import IncidentResolveTimeCard from "@/incident/IncidentResolveTimeCard.vue"
+import IncidentCommandersLocationBarChartCard from "@/incident/IncidentCommandersLocationBarChartCard.vue"
 import IncidentCostBarChartCard from "@/incident/IncidentCostBarChartCard.vue"
-import IncidentPriorityBarChartCard from "@/incident/IncidentPriorityBarChartCard.vue"
+import IncidentDialogFilter from "@/dashboard/IncidentDialogFilter.vue"
 import IncidentForecastCard from "@/incident/IncidentForecastCard.vue"
 import IncidentHeatmapCard from "@/incident/IncidentHeatmapCard.vue"
-import IncidentPrimaryLocationBarChartCard from "@/incident/IncidentPrimaryLocationBarChartCard.vue"
-import IncidentPrimaryTeamBarChartCard from "@/incident/IncidentPrimaryTeamBarChartCard.vue"
+import IncidentParticipantsLocationBarChartCard from "@/incident/IncidentParticipantsLocationBarChartCard.vue"
+import IncidentParticipantsTeamBarChartCard from "@/incident/IncidentParticipantsTeamBarChartCard.vue"
+import IncidentPriorityBarChartCard from "@/incident/IncidentPriorityBarChartCard.vue"
+import IncidentReportersLocationBarChartCard from "@/incident/IncidentReportersLocationBarChartCard.vue"
+import IncidentResolveTimeCard from "@/incident/IncidentResolveTimeCard.vue"
 import IncidentTagsTreemapCard from "@/incident/IncidentTagsTreemapCard.vue"
+import IncidentTypeBarChartCard from "@/incident/IncidentTypeBarChartCard.vue"
 import IncidentsDrillDownSheet from "@/dashboard/IncidentsDrillDownSheet.vue"
+import StatWidget from "@/components/StatWidget.vue"
 
 export default {
   name: "IncidentDashboard",
 
   components: {
-    DialogFilter,
-    StatWidget,
-    IncidentHeatmapCard,
-    IncidentTypeBarChartCard,
-    IncidentResolveTimeCard,
     IncidentActiveTimeCard,
+    IncidentCommandersLocationBarChartCard,
     IncidentCostBarChartCard,
-    IncidentPriorityBarChartCard,
+    IncidentDialogFilter,
     IncidentForecastCard,
-    IncidentPrimaryLocationBarChartCard,
-    IncidentPrimaryTeamBarChartCard,
+    IncidentHeatmapCard,
+    IncidentParticipantsLocationBarChartCard,
+    IncidentParticipantsTeamBarChartCard,
+    IncidentPriorityBarChartCard,
+    IncidentReportersLocationBarChartCard,
+    IncidentResolveTimeCard,
     IncidentTagsTreemapCard,
+    IncidentTypeBarChartCard,
     IncidentsDrillDownSheet,
+    StatWidget,
   },
 
   data() {
@@ -136,7 +158,6 @@ export default {
       loading: "error",
       items: [],
       detailItems: [],
-      filterOptions: null,
       showDrillDown: false,
     }
   },
@@ -153,9 +174,6 @@ export default {
     },
     setLoading(data) {
       this.loading = data
-    },
-    setFilterOptions(data) {
-      this.filterOptions = data
     },
     copyView: function () {
       let store = this.$store
@@ -184,15 +202,30 @@ export default {
   },
 
   computed: {
+    ...mapFields("route", ["query.project"]),
+    ...mapFields("auth", ["currentUser.projects"]),
+
     incidentsByYear() {
       return groupBy(this.items, function (item) {
         return parseISO(item.reported_at).getYear()
       })
     },
     incidentsByMonth() {
-      return groupBy(this.items, function (item) {
-        return parseISO(item.reported_at).toLocaleString("default", { month: "short" })
-      })
+      // add year info if necessary
+      if (Object.keys(this.incidentsByYear).length > 1) {
+        return groupBy(this.items, function (item) {
+          return parseISO(item.reported_at).toLocaleString("default", {
+            month: "short",
+            year: "numeric",
+          })
+        })
+      } else {
+        return groupBy(this.items, function (item) {
+          return parseISO(item.reported_at).toLocaleString("default", {
+            month: "short",
+          })
+        })
+      }
     },
     incidentsByQuarter() {
       return groupBy(this.items, function (item) {
@@ -220,7 +253,16 @@ export default {
         return differenceInHours(parseISO(endTime), parseISO(item.reported_at))
       })
     },
-    ...mapFields("route", ["query.project"]),
+    defaultUserProjects: {
+      get() {
+        let d = null
+        if (this.projects) {
+          let d = this.projects.filter((v) => v.default === true)
+          return d.map((v) => v.project)
+        }
+        return d
+      },
+    },
   },
 }
 </script>

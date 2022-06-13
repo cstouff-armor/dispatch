@@ -44,12 +44,16 @@ export default {
 
   created: function () {
     IncidentPriorityApi.getAll().then((response) => {
-      this.priorities = map(
-        sortBy(response.data.items, function (value) {
-          return value.view_order
-        }),
-        "name"
-      )
+      this.priorities = [
+        ...new Set(
+          map(
+            sortBy(response.data.items, function (value) {
+              return value.view_order
+            }),
+            "name"
+          )
+        ),
+      ]
     })
   },
 
@@ -60,6 +64,9 @@ export default {
           type: "bar",
           height: 350,
           stacked: true,
+          animations: {
+            enabled: false,
+          },
           events: {
             dataPointSelection: (event, chartContext, config) => {
               var data = config.w.config.series[config.seriesIndex].data[config.dataPointIndex]
@@ -76,7 +83,16 @@ export default {
             },
           },
         ],
-        colors: ["#008FFB", "#FF4560", "#FEB019"],
+        colors: [
+          function ({ seriesIndex, w }) {
+            for (let i = 0; i < w.config.series[seriesIndex].data.length; i++) {
+              if (w.config.series[seriesIndex].data[i].items.length > 0) {
+                return w.config.series[seriesIndex].data[i].items[0].incident_priority.color
+              }
+            }
+            return "#008FFB"
+          },
+        ],
         xaxis: {
           categories: this.categoryData || [],
           title: {

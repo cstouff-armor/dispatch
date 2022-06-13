@@ -11,7 +11,7 @@ from sqlalchemy_utils import TSVectorType
 from dispatch.database.core import Base
 from dispatch.models import DispatchBase, NameStr, PrimaryKey
 
-from dispatch.organization.models import Organization, OrganizationCreate
+from dispatch.organization.models import Organization, OrganizationRead
 
 
 class Project(Base):
@@ -21,8 +21,8 @@ class Project(Base):
     default = Column(Boolean, default=False)
     color = Column(String)
 
-    annual_employee_cost = Column(Integer, default=650000)
-    business_year_hours = Column(Integer, default=2000)
+    annual_employee_cost = Column(Integer, default=50000)
+    business_year_hours = Column(Integer, default=2080)
 
     owner_email = Column(String)
     owner_conversation = Column(String)
@@ -52,7 +52,7 @@ class ProjectBase(DispatchBase):
 
 
 class ProjectCreate(ProjectBase):
-    organization: OrganizationCreate
+    organization: OrganizationRead
 
 
 class ProjectUpdate(ProjectBase):

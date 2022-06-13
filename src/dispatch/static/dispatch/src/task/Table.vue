@@ -8,7 +8,7 @@
       </v-col>
       <v-spacer />
       <v-col cols="3">
-        <table-filter-dialog />
+        <table-filter-dialog :projects="defaultUserProjects" />
         <table-export-dialog />
         <v-btn color="info" class="ml-2" @click="createEditShow()"> New </v-btn>
       </v-col>
@@ -136,27 +136,28 @@
 import { mapFields } from "vuex-map-fields"
 import { mapActions } from "vuex"
 
-import RouterUtils from "@/router/utils"
-import DeleteDialog from "@/task/DeleteDialog.vue"
-import NewEditSheet from "@/task/NewEditSheet.vue"
-import TableFilterDialog from "@/task/TableFilterDialog.vue"
 import BulkEditSheet from "@/task/BulkEditSheet.vue"
+import DeleteDialog from "@/task/DeleteDialog.vue"
 import IncidentPriority from "@/incident/IncidentPriority.vue"
+import NewEditSheet from "@/task/NewEditSheet.vue"
 import Participant from "@/incident/Participant.vue"
+import RouterUtils from "@/router/utils"
 import TableExportDialog from "@/task/TableExportDialog.vue"
+import TableFilterDialog from "@/task/TableFilterDialog.vue"
 
 export default {
   name: "TaskTable",
 
   components: {
-    TableFilterDialog,
-    DeleteDialog,
-    NewEditSheet,
     BulkEditSheet,
+    DeleteDialog,
     IncidentPriority,
+    NewEditSheet,
     Participant,
     TableExportDialog,
+    TableFilterDialog,
   },
+
   data() {
     return {
       headers: [
@@ -201,10 +202,30 @@ export default {
       "table.rows.selected",
     ]),
     ...mapFields("route", ["query"]),
+    ...mapFields("auth", ["currentUser.projects"]),
+
+    defaultUserProjects: {
+      get() {
+        let d = null
+        if (this.projects) {
+          let d = this.projects.filter((v) => v.default === true)
+          return d.map((v) => v.project)
+        }
+        return d
+      },
+    },
+  },
+
+  methods: {
+    ...mapActions("task", ["getAll", "createEditShow", "removeShow"]),
   },
 
   created() {
-    this.filters = { ...this.filters, ...RouterUtils.deserializeFilters(this.query) }
+    this.filters = {
+      ...this.filters,
+      ...RouterUtils.deserializeFilters(this.query),
+      project: this.defaultUserProjects,
+    }
 
     this.getAll()
 
@@ -221,14 +242,11 @@ export default {
         vm.itemsPerPage,
         vm.sortBy,
         vm.descending,
-        vm.creator,
-        vm.assignee,
+        vm.project,
         vm.incident,
         vm.incident_type,
         vm.incident_priority,
-        vm.project,
         vm.status,
-        vm.project,
       ],
       () => {
         this.page = 1
@@ -236,10 +254,6 @@ export default {
         this.getAll()
       }
     )
-  },
-
-  methods: {
-    ...mapActions("task", ["getAll", "createEditShow", "removeShow"]),
   },
 }
 </script>

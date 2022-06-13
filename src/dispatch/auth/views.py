@@ -3,7 +3,6 @@ from pydantic.error_wrappers import ErrorWrapper, ValidationError
 from sqlalchemy.orm import Session
 
 from dispatch.auth.permissions import (
-    OrganizationOwnerPermission,
     OrganizationMemberPermission,
     PermissionsDependency,
 )
@@ -12,22 +11,22 @@ from dispatch.exceptions import (
     InvalidPasswordError,
     InvalidUsernameError,
 )
-
-from dispatch.models import OrganizationSlug, PrimaryKey
 from dispatch.database.core import get_db
 from dispatch.database.service import common_parameters, search_filter_sort_paginate
+from dispatch.enums import UserRoles
+from dispatch.models import OrganizationSlug, PrimaryKey
 from dispatch.organization.models import OrganizationRead
 
 from .models import (
     DispatchUser,
     UserLogin,
-    UserOrganization,
-    UserRegister,
-    UserRead,
-    UserUpdate,
-    UserPagination,
     UserLoginResponse,
+    UserOrganization,
+    UserPagination,
+    UserRead,
+    UserRegister,
     UserRegisterResponse,
+    UserUpdate,
 )
 from .service import get, get_by_email, update, create, get_current_user
 
@@ -54,6 +53,7 @@ def get_users(*, organization: OrganizationSlug, common: dict = Depends(common_p
     common["filter_spec"] = {
         "and": [{"model": "Organization", "op": "==", "field": "name", "value": organization}]
     }
+
     items = search_filter_sort_paginate(model="DispatchUser", **common)
 
     # filtered users
@@ -78,7 +78,7 @@ def get_user(*, db_session: Session = Depends(get_db), user_id: PrimaryKey):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "The user with this id does not exist."}],
+            detail=[{"msg": "A user with this id does not exist."}],
         )
 
     return user
@@ -97,7 +97,6 @@ def get_me(
 @user_router.put(
     "/{user_id}",
     response_model=UserRead,
-    dependencies=[Depends(PermissionsDependency([OrganizationOwnerPermission]))],
 )
 def update_user(
     *,
@@ -105,14 +104,29 @@ def update_user(
     user_id: PrimaryKey,
     organization: OrganizationSlug,
     user_in: UserUpdate,
+    current_user: DispatchUser = Depends(get_current_user),
 ):
     """Update a user."""
     user = get(db_session=db_session, user_id=user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=[{"msg": "The user with this id does not exist."}],
+            detail=[{"msg": "A user with this id does not exist."}],
         )
+
+    if user_in.role:
+        user_organization_role = user.get_organization_role(organization)
+        if user_organization_role != user_in.role:
+            current_user_organization_role = current_user.get_organization_role(organization)
+            if current_user_organization_role != UserRoles.owner:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=[
+                        {
+                            "msg": "You don't have permissions to update the user's role. Please, contact the organization's owner."
+                        }
+                    ],
+                )
 
     # add organization information
     user_in.organizations = [
@@ -130,7 +144,16 @@ def login_user(
 ):
     user = get_by_email(db_session=db_session, email=user_in.email)
     if user and user.check_password(user_in.password):
-        return {"token": user.token}
+        projects = []
+        for user_project in user.projects:
+            projects.append(
+                {
+                    "project": user_project.project,
+                    "default": user_project.default,
+                    "role": user_project.role,
+                }
+            )
+        return {"projects": projects, "token": user.token}
 
     raise ValidationError(
         [

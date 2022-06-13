@@ -4,12 +4,11 @@
       <v-card-text>
         <p class="display-1 text--primary">Report Incident</p>
         <p>
-          If you suspect an incident and require help, please fill out the following to the best of
-          your abilities.
+          If you suspect an incident and need help, please fill out this form to the best of your
+          abilities.
         </p>
         <p v-if="project_faq">
-          Unsure if your in the right place or have additional questions? Checkout this project's
-          incident FAQ document:
+          If you have additional questions, please check out the following FAQ document:
           <a :href="project_faq.weblink" target="_blank" style="text-decoration: none">
             {{ project_faq.name }}
             <v-icon small>open_in_new</v-icon>
@@ -60,7 +59,7 @@
                 <incident-priority-select :project="project" v-model="incident_priority" />
               </v-flex>
               <v-flex xs12>
-                <tag-filter-combobox :project="project" v-model="tags" label="Tags" />
+                <tag-filter-auto-complete :project="project" v-model="tags" label="Tags" />
               </v-flex>
             </v-layout>
             <template>
@@ -93,7 +92,7 @@ import IncidentTypeSelect from "@/incident_type/IncidentTypeSelect.vue"
 import IncidentPrioritySelect from "@/incident_priority/IncidentPrioritySelect.vue"
 import ProjectSelect from "@/project/ProjectSelect.vue"
 import DocumentApi from "@/document/api"
-import TagFilterCombobox from "@/tag/TagFilterCombobox.vue"
+import TagFilterAutoComplete from "@/tag/TagFilterAutoComplete.vue"
 
 extend("required", {
   ...required,
@@ -109,14 +108,16 @@ export default {
     IncidentTypeSelect,
     IncidentPrioritySelect,
     ProjectSelect,
-    TagFilterCombobox,
+    TagFilterAutoComplete,
   },
+
   data() {
     return {
       isSubmitted: false,
       project_faq: null,
     }
   },
+
   computed: {
     ...mapFields("incident", [
       "selected.incident_priority",
@@ -166,14 +167,17 @@ export default {
   },
 
   created() {
+    this.project = { name: "" }
     if (this.query.project) {
       this.project = { name: this.query.project }
     }
 
+    this.incident_type = { name: "" }
     if (this.query.incident_type) {
       this.incident_type = { name: this.query.incident_type }
     }
 
+    this.incident_priority = { name: "" }
     if (this.query.incident_priority) {
       this.incident_priority = { name: this.query.incident_priority }
     }

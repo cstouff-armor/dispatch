@@ -1,8 +1,10 @@
 black
+click==8.0.4
 coverage
 devtools
 factory-boy
 faker
 flake8
+ipython
 pytest
 vulture

@@ -7,8 +7,9 @@
     @update:search-input="getFilteredData()"
     chips
     clearable
-    hide-selected
     item-text="name"
+    item-value="id"
+    hide-selected
     multiple
     no-filter
     v-model="tags"
@@ -26,9 +27,12 @@
     </template>
     <template v-slot:selection="{ item, index }">
       <v-chip close @click:close="value.splice(index, 1)">
-        <span v-if="item.tag_type"
-          ><span v-if="!project">{{ item.project.name }}/</span>{{ item.tag_type.name }}/ </span
-        >{{ item.name }}
+        <span v-if="item.tag_type">
+          <span v-if="!project">{{ item.project.name }}/</span>{{ item.tag_type.name }}/
+        </span>
+        <a :href="item.uri" target="_blank" :title="item.description">
+          {{ item.name }}
+        </a>
       </v-chip>
     </template>
     <template v-slot:item="data">
@@ -60,7 +64,7 @@ import SearchUtils from "@/search/utils"
 import TagApi from "@/tag/api"
 
 export default {
-  name: "TagCombobox",
+  name: "TagAutoComplete",
   props: {
     value: {
       type: Array,
@@ -102,14 +106,11 @@ export default {
       },
       set(value) {
         this.search = null
-        this._tags = value.map((v) => {
+        this._tags = value.filter((v) => {
           if (typeof v === "string") {
-            v = {
-              name: v,
-            }
-            this.items.push(v)
+            return false
           }
-          return v
+          return true
         })
         this.$emit("input", this._tags)
       },

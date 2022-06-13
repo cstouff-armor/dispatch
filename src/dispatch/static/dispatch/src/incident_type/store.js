@@ -42,7 +42,7 @@ const state = {
       page: 1,
       itemsPerPage: 10,
       sortBy: ["name"],
-      descending: [true],
+      descending: [false],
       filters: {
         project: [],
       },
@@ -58,7 +58,10 @@ const getters = {
 const actions = {
   getAll: debounce(({ commit, state }) => {
     commit("SET_TABLE_LOADING", "primary")
-    let params = SearchUtils.createParametersFromTableOptions({ ...state.table.options })
+    let params = SearchUtils.createParametersFromTableOptions(
+      { ...state.table.options },
+      "IncidentType"
+    )
     return IncidentTypeApi.getAll(params)
       .then((response) => {
         commit("SET_TABLE_LOADING", false)
@@ -136,7 +139,7 @@ const actions = {
 const mutations = {
   updateField,
   SET_SELECTED(state, value) {
-    state.selected = value
+    state.selected = Object.assign(state.selected, value)
   },
   SET_SELECTED_LOADING(state, value) {
     state.selected.loading = value
